@@ -1,8 +1,4 @@
 /**
- *Submitted for verification at BscScan.com on 2022-03-20
-*/
-
-/**
 ██████╗ ███████╗ █████╗ ██████╗      ██████╗██████╗ ██╗   ██╗███████╗██╗  ██╗
 ██╔══██╗██╔════╝██╔══██╗██╔══██╗    ██╔════╝██╔══██╗██║   ██║██╔════╝██║  ██║
 ██████╔╝█████╗  ███████║██████╔╝    ██║     ██████╔╝██║   ██║███████╗███████║
@@ -458,7 +454,7 @@ contract Ownable is Context {
         _owner = newOwner;
     }
 
-
+/**
     //Locks the contract for owner for the amount of time provided
     function lock(uint256 time) public virtual onlyOwner {
         _previousOwner = _owner;
@@ -474,6 +470,7 @@ contract Ownable is Context {
         emit OwnershipTransferred(_owner, _previousOwner);
         _owner = _previousOwner;
     }
+    */
 }
 
 // pragma solidity >=0.5.0;
@@ -695,7 +692,8 @@ Token Symbol: BCRUSH
 Supply: 1,000,000,000
 Blockchain: BSC
 2% to all holders per tx 
-2% to marketing wallet (require wallet address) 
+1% to marketing wallet (require wallet address)
+1% to developments wallet(require wallet address)
 
 Can manually set max tx amount % to prevent big buys at launch Write Contract important Functions: 
 excludeFromFee 
@@ -732,12 +730,15 @@ contract BearCrushToken is Context, IERC20, Ownable {
     uint256 public _taxFee = 2;
     uint256 private _previousTaxFee = _taxFee;
     
-    uint256 public _liquidityFee = 0;
+    uint256 private _liquidityFee = 0;
     uint256 private _previousLiquidityFee = _liquidityFee;
     
+    uint256 public _developmentFee = 1;
+    uint256 private _previousdevelopmentFee = _developmentFee;
+    address public developmentWallet = 0x9bcBE4Af33C43E12c82d2fcD77DF6AF7F82174A2 ;
 
-    uint256 public _marketingFee = 2;
-    address public marketingWallet = 0x9bcBE4Af33C43E12c82d2fcD77DF6AF7F82174A2 ;
+    uint256 public _marketingFee = 1;
+    address public marketingWallet = 0xc9802dDfD5039EcEAF6482ACC5339644a9040C28 ;
     uint256 private _previousmarketingFee = _marketingFee;
 
     IUniswapV2Router02 public immutable uniswapV2Router;
@@ -839,7 +840,7 @@ contract BearCrushToken is Context, IERC20, Ownable {
     function totalFees() public view returns (uint256) {
         return _tFeeTotal;
     }
-    
+ /**   
      function setMarketingFeePercent(uint256 newMarketingFee) external onlyOwner() {
         _marketingFee = newMarketingFee;
     }
@@ -852,7 +853,10 @@ contract BearCrushToken is Context, IERC20, Ownable {
         _liquidityFee = liquidityFee;
     }
     
-    
+     function setdevelopmentFeePercent(uint256 developmentFee) external onlyOwner() {
+        _developmentFee = developmentFee;
+    }
+ */    
     function deliver(uint256 tAmount) public {
         address sender = _msgSender();
         require(!_isExcluded[sender], "Excluded addresses cannot call this function");
@@ -985,12 +989,14 @@ contract BearCrushToken is Context, IERC20, Ownable {
     function removeAllFee() private {
         _taxFee = 0;
         _liquidityFee = 0;
+        _developmentFee = 0;
         _marketingFee = 0;
     }
     
     function restoreAllFee() private {
         _taxFee = _previousTaxFee;
         _liquidityFee = _previousLiquidityFee;
+        _developmentFee = _previousdevelopmentFee;
         _marketingFee = _previousmarketingFee;
     }
     
@@ -1119,18 +1125,19 @@ contract BearCrushToken is Context, IERC20, Ownable {
         }
         
         //Calculate burn amount and marketing amount
+        uint256 burnAmt = amount.mul(_developmentFee).div(100);
         uint256 marketingAmt = amount.mul(_marketingFee).div(100);
 
         if (_isExcluded[sender] && !_isExcluded[recipient]) {
-            _transferFromExcluded(sender, recipient, (amount.sub(marketingAmt)));
+            _transferFromExcluded(sender, recipient, (amount.sub(burnAmt).sub(marketingAmt)));
         } else if (!_isExcluded[sender] && _isExcluded[recipient]) {
-            _transferToExcluded(sender, recipient, (amount.sub(marketingAmt)));
+            _transferToExcluded(sender, recipient, (amount.sub(burnAmt).sub(marketingAmt)));
         } else if (!_isExcluded[sender] && !_isExcluded[recipient]) {
-            _transferStandard(sender, recipient, (amount.sub(marketingAmt)));
+            _transferStandard(sender, recipient, (amount.sub(burnAmt).sub(marketingAmt)));
         } else if (_isExcluded[sender] && _isExcluded[recipient]) {
-            _transferBothExcluded(sender, recipient, (amount.sub(marketingAmt)));
+            _transferBothExcluded(sender, recipient, (amount.sub(burnAmt).sub(marketingAmt)));
         } else {
-            _transferStandard(sender, recipient, (amount.sub(marketingAmt)));
+            _transferStandard(sender, recipient, (amount.sub(burnAmt).sub(marketingAmt)));
         }
         
         //Temporarily remove fees to transfer to burn address and marketing wallet
@@ -1138,6 +1145,7 @@ contract BearCrushToken is Context, IERC20, Ownable {
         _liquidityFee = 0;
 
         //Send transfers to burn and marketing wallet
+        _transferStandard(sender, developmentWallet, burnAmt);
         _transferStandard(sender, marketingWallet, marketingAmt);
 
         //Restore tax and liquidity fees
@@ -1177,11 +1185,11 @@ contract BearCrushToken is Context, IERC20, Ownable {
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
-
+/**
     function setMaxWalletTokend(uint256 _maxToken) external onlyOwner {
   	    maxWalletToken = _maxToken * 10**_decimals;
   	}
-
+*/
     function excludeFromFee(address account) public onlyOwner {
         _isExcludedFromFee[account] = true;
     }
@@ -1190,14 +1198,18 @@ contract BearCrushToken is Context, IERC20, Ownable {
         _isExcludedFromFee[account] = false;
     }
     
-    
     function setmarketingWallet(address newWallet) external onlyOwner() {
         marketingWallet = newWallet;
     }
-    
+
+    function setdevelopmentWallet(address newWallet) external onlyOwner() {
+        developmentWallet = newWallet;
+    }
+     
     function setMaxTxAmount(uint256 maxTxAmount) external onlyOwner() {
         _maxTxAmount = maxTxAmount ;
     }
+     
     function setMaxTxPercent(uint256 maxTxPercent) external onlyOwner() {
         require(maxTxPercent > 1, "Cannot set transaction amount less than 10 percent!");
         _maxTxAmount = _tTotal.mul(maxTxPercent).div(
